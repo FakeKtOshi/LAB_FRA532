@@ -31,7 +31,7 @@ class EKFNode(Node):
         # EKF parameters
         self.P = np.identity(3)
         self.Q = np.eye(3) * 0.1
-        self.R = np.eye(1) * 0.1
+        self.R = np.eye(1) * 10.0
 
         # IMU parameters
         self.imu_omega = 0.0
@@ -92,8 +92,15 @@ class EKFNode(Node):
         self.last_time_imu = current_time_imu
 
         self.imu_theta += self.imu_omega * self.dt_imu
+        #self.imu_theta = self.imu_omega * self.dt_imu
+
         self.ekf_correct()
-        self.get_logger().info(f"IMU theta received: {self.imu_theta}")
+        #self.get_logger().info(f"IMU theta received: {self.imu_theta}")
+        self.get_logger().info(
+        f"imu_omega={self.imu_omega:.4f}  "
+        f"imu_theta={self.imu_theta:.4f}  "
+        f"state_theta={self.state[2]:.4f}"
+        )
 
     def ekf_predict(self):
         # Predict State (Mean)
@@ -115,6 +122,9 @@ class EKFNode(Node):
         self.P = F @ self.P @ F.T + self.Q
 
     def ekf_correct(self):
+        if abs(self.velocity) < 0.001:
+            return
+
         z = np.array([self.imu_theta]) # Theta
         #h = self.state[2]
         h = np.array([self.state[2]])
@@ -126,8 +136,8 @@ class EKFNode(Node):
     def publish_ekf_odometry(self, stamp):
         odom_msg = Odometry()
         odom_msg.header.stamp = stamp
-        odom_msg.header.frame_id = "ekf_odom"
-        odom_msg.child_frame_id = "base_ekf"
+        odom_msg.header.frame_id = "odom"
+        odom_msg.child_frame_id = "base_link"
 
         odom_msg.pose.pose.position.x = self.state[0]
         odom_msg.pose.pose.position.y = self.state[1]
