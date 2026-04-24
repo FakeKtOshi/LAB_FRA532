@@ -166,10 +166,18 @@ class ICPNode(Node):
         if self.prev_scan is not None:
             self.R, self.T = self.icp(self.curr_scan, self.prev_scan)
 
+            dtheta = np.arctan2(self.R[1, 0], self.R[0, 0])
+            dx = self.T[0]
+            dy = self.T[1]
+
             #Update the pose
-            self.pose[0] += self.T[0]
-            self.pose[1] += self.T[1]
-            self.pose[2] += np.arctan2(self.R[1, 0], self.R[0, 0])
+            # self.pose[0] += self.T[0]
+            # self.pose[1] += self.T[1]
+            # self.pose[2] += np.arctan2(self.R[1, 0], self.R[0, 0])
+
+            self.pose[0] = self.ekf_pose[0] + dx   # ← use ekf as base!
+            self.pose[1] = self.ekf_pose[1] + dy
+            self.pose[2] = self.ekf_pose[2] + dtheta
             self.publish_icp_odom(msg)
         self.prev_scan = self.curr_scan
 

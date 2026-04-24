@@ -71,9 +71,10 @@ class DifferentialDriveNode(Node):
         self.last_time = current_time
 
         # Linear velocity
-        self.velocity = (vel_right + vel_left) * self.wheel_radius / 2.0 
+        self.velocity = (vel_right + vel_left) / 2.0 
         # Angular velocity
-        self.omega = (vel_right - vel_left) * self.wheel_radius / self.distance_wheel 
+        #self.omega = (vel_right - vel_left) * self.wheel_radius / self.distance_wheel 
+        self.omega = (vel_right - vel_left) / self.distance_wheel 
         
         x_new = self.state[0] + (self.velocity * math.cos(self.state[2]) * dt) # When we have the velocity and the angle, we can calculate the new position of the robot along with old one
         y_new = self.state[1] + (self.velocity * math.sin(self.state[2]) * dt)

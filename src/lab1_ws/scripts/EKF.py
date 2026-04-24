@@ -41,6 +41,7 @@ class EKFNode(Node):
         # IMU parameters
         self.imu_omega = 0.0
         self.imu_theta = 0.0
+        self.imu_theta_offset = 0.0  # ← add this!
 
         # Subscribers
         self.create_subscription(Imu, '/imu', self.imu_callback, 10) # IMU data
@@ -70,9 +71,10 @@ class EKFNode(Node):
         self.last_time = current_time
 
         # Linear velocity
-        self.velocity = (vel_right + vel_left) * self.wheel_radius / 2.0 
+        self.velocity = (vel_right + vel_left) / 2.0 
         # Angular velocity
-        self.omega = (vel_right - vel_left) * self.wheel_radius / self.distance_wheel 
+        #self.omega = (vel_right - vel_left) * self.wheel_radius / self.distance_wheel 
+        self.omega = (vel_right - vel_left) / self.distance_wheel
 
         # Callout
         self.ekf_predict()
@@ -88,6 +90,11 @@ class EKFNode(Node):
         current_time_imu  = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         if self.last_time_imu is None:
             self.last_time_imu = current_time_imu
+
+            # Store initial offset on first reading!
+            self.imu_theta_offset = 2 * np.arctan2(
+            msg.orientation.z,
+            msg.orientation.w)
             return
         
         self.dt_imu = current_time_imu - self.last_time_imu
@@ -95,6 +102,15 @@ class EKFNode(Node):
             self.get_logger().warn("Time difference is too large or negative, skipping update.")
             return
         self.last_time_imu = current_time_imu
+
+        # Use ABSOLUTE orientation instead of integration!
+        imu_theta_raw = 2 * np.arctan2(
+            msg.orientation.z,
+            msg.orientation.w
+        )
+
+        # Subtract initial offset so starts at 0!
+        #self.imu_theta = imu_theta_raw - self.imu_theta_offset
 
         self.imu_theta += self.imu_omega * self.dt_imu
         #self.imu_theta = self.imu_omega * self.dt_imu
@@ -151,19 +167,17 @@ class EKFNode(Node):
 
         self.ekf_odom_publisher.publish(odom_msg)
 
-        t = TransformStamped()
-        t.header.stamp = stamp
-        t.header.frame_id = 'ekf_odom'    
-        t.child_frame_id = 'base_link'
-        t.transform.translation.x = self.state[0]
-        t.transform.translation.y = self.state[1]
-        t.transform.translation.z = 0.0
-        t.transform.rotation.z = math.sin(self.state[2] / 2.0)
-        t.transform.rotation.w = math.cos(self.state[2] / 2.0)
-        self.tf_broadcaster.sendTransform(t)
+        # t = TransformStamped()
+        # t.header.stamp = stamp
+        # t.header.frame_id = 'ekf_odom'    
+        # t.child_frame_id = 'base_link'
+        # t.transform.translation.x = self.state[0]
+        # t.transform.translation.y = self.state[1]
+        # t.transform.translation.z = 0.0
+        # t.transform.rotation.z = math.sin(self.state[2] / 2.0)
+        # t.transform.rotation.w = math.cos(self.state[2] / 2.0)
+        # self.tf_broadcaster.sendTransform(t)
         
-
-
 def main(args=None):
     rclpy.init(args=args)
     node = EKFNode()
