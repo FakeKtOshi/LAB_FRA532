@@ -8,9 +8,14 @@ from nav_msgs.msg import Odometry
 import numpy as np
 import math
 
+from tf2_ros import TransformBroadcaster
+from geometry_msgs.msg import TransformStamped
+
 class EKFNode(Node):
     def __init__(self):
         super().__init__('EKF_node')
+
+        self.tf_broadcaster = TransformBroadcaster(self)
 
         # Robot parameters
         self.wheel_radius = 0.1 
@@ -136,7 +141,7 @@ class EKFNode(Node):
     def publish_ekf_odometry(self, stamp):
         odom_msg = Odometry()
         odom_msg.header.stamp = stamp
-        odom_msg.header.frame_id = "odom"
+        odom_msg.header.frame_id = "ekf_odom"
         odom_msg.child_frame_id = "base_link"
 
         odom_msg.pose.pose.position.x = self.state[0]
@@ -145,6 +150,17 @@ class EKFNode(Node):
         odom_msg.pose.pose.orientation.w = math.cos(self.state[2] / 2.0)
 
         self.ekf_odom_publisher.publish(odom_msg)
+
+        t = TransformStamped()
+        t.header.stamp = stamp
+        t.header.frame_id = 'ekf_odom'    
+        t.child_frame_id = 'base_link'
+        t.transform.translation.x = self.state[0]
+        t.transform.translation.y = self.state[1]
+        t.transform.translation.z = 0.0
+        t.transform.rotation.z = math.sin(self.state[2] / 2.0)
+        t.transform.rotation.w = math.cos(self.state[2] / 2.0)
+        self.tf_broadcaster.sendTransform(t)
         
 
 

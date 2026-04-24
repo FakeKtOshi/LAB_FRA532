@@ -10,6 +10,9 @@ from std_msgs.msg import Float64
 import math
 import numpy as np
 
+from tf2_ros import TransformBroadcaster
+from geometry_msgs.msg import TransformStamped
+
 class DifferentialDriveNode(Node):
     def __init__(self):
         super().__init__('differential_drive_node')
@@ -18,6 +21,8 @@ class DifferentialDriveNode(Node):
         self.wheel_radius = 0.1 
         self.wheel_base = 0.5    # distance between the centers of the wheels
         self.distance_wheel = 0.4 # distance between the wheels
+
+        self.tf_broadcaster = TransformBroadcaster(self)
 
         # State
         self.state = np.zeros(3) # [x, y, theta]
@@ -100,6 +105,17 @@ class DifferentialDriveNode(Node):
         odom_msg.twist.twist.angular.z = self.omega
 
         self.odom_publisher.publish(odom_msg)
+
+        t = TransformStamped()
+        t.header.stamp = stamp
+        t.header.frame_id = 'odom'
+        t.child_frame_id = 'base_link'
+        t.transform.translation.x = self.state[0]
+        t.transform.translation.y = self.state[1]
+        t.transform.translation.z = 0.0
+        t.transform.rotation.z = math.sin(self.state[2] / 2.0)
+        t.transform.rotation.w = math.cos(self.state[2] / 2.0)
+        self.tf_broadcaster.sendTransform(t)
     
     # def publish_state(self, state):
     #     self.state_publisher.publish(state)
